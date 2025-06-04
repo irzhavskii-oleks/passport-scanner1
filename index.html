@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Сканування паспорта</title>
+  <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const codeReader = new ZXing.BrowserBarcodeReader();
+      const videoElement = document.getElementById('video');
+
+      codeReader
+        .getVideoInputDevices()
+        .then(videoInputDevices => {
+          const firstDeviceId = videoInputDevices[0].deviceId;
+          return codeReader.decodeOnceFromVideoDevice(firstDeviceId, videoElement);
+        })
+        .then(result => {
+          const passportNumber = result.text;
+          console.log('Scanned:', passportNumber);
+          if (window.Telegram.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.sendData(passportNumber); // Надсилає в бот
+            Telegram.WebApp.close(); // Закриває WebApp
+          } else {
+            alert('Scan result: ' + passportNumber);
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert('Помилка сканування: ' + err);
+        });
+    });
+  </script>
+</head>
+<body>
+  <h3>Скануй штрихкод паспорта</h3>
+  <video id="video" width="100%" height="auto" autoplay></video>
+</body>
+</html>
