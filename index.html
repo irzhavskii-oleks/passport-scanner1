@@ -50,18 +50,26 @@
   <button onclick="sendManual()">Надіслати вручну</button>
 
   <script>
+   document.addEventListener("DOMContentLoaded", function () {
+  if (typeof Telegram !== "undefined" && Telegram.WebApp) {
     Telegram.WebApp.ready();
 
-    function sendManual() {
+    // Ручне надсилання
+    window.sendManual = function () {
       const input = document.getElementById("manualInput").value.trim();
       if (input.length > 0) {
-        Telegram.WebApp.sendData(input);
-        Telegram.WebApp.close();
+        if (Telegram.WebApp.sendData) {
+          Telegram.WebApp.sendData(input);
+          Telegram.WebApp.close();
+        } else {
+          alert("Не вдалося надіслати через Telegram WebApp.");
+        }
       } else {
         alert("Будь ласка, введіть номер паспорта.");
       }
-    }
+    };
 
+    // Автосканування
     const html5QrCode = new Html5Qrcode("reader");
 
     Html5Qrcode.getCameras().then(cameras => {
@@ -70,19 +78,14 @@
 
         html5QrCode.start(
           backCam.id,
-          {
-            fps: 10,
-            qrbox: 250,
-            // Тепер автоматичне визначення формату (всі підтримувані)
-          },
+          { fps: 10, qrbox: 250 },
           (decodedText) => {
-            console.log("✅ Розпізнано:", decodedText);
             Telegram.WebApp.sendData(decodedText);
             Telegram.WebApp.close();
             html5QrCode.stop();
           },
-          error => {
-            // Просто ігноруємо невдалі спроби
+          (errorMessage) => {
+            // Не показуємо помилки
           }
         );
       } else {
@@ -91,6 +94,12 @@
     }).catch(err => {
       alert("Помилка доступу до камери: " + err);
     });
+
+  } else {
+    alert("Telegram WebApp API не активне. Відкрий через Telegram.");
+  }
+});
+
   </script>
 </body>
 </html>
