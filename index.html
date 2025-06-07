@@ -1,39 +1,60 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>Сканування паспорта</title>
   <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
-  <script>
-    window.addEventListener('DOMContentLoaded', () => {
-      const codeReader = new ZXing.BrowserBarcodeReader();
-      const videoElement = document.getElementById('video');
-
-      codeReader
-        .getVideoInputDevices()
-        .then(videoInputDevices => {
-          const firstDeviceId = videoInputDevices[0].deviceId;
-          return codeReader.decodeOnceFromVideoDevice(firstDeviceId, videoElement);
-        })
-        .then(result => {
-          const passportNumber = result.text;
-          console.log('Scanned:', passportNumber);
-          if (window.Telegram.WebApp) {
-            Telegram.WebApp.ready();
-            Telegram.WebApp.sendData(passportNumber); // Надсилає в бот
-            Telegram.WebApp.close(); // Закриває WebApp
-          } else {
-            alert('Scan result: ' + passportNumber);
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          alert('Помилка сканування: ' + err);
-        });
-    });
-  </script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 1rem;
+    }
+    video {
+      width: 100%;
+      max-width: 500px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+  </style>
 </head>
 <body>
-  <h3>Скануй штрихкод паспорта</h3>
-  <video id="video" width="100%" height="auto" autoplay></video>
+  <h3>📷 Наведіть камеру на штрихкод</h3>
+  <video id="video" autoplay muted playsinline></video>
+
+  <script>
+    const codeReader = new ZXing.BrowserMultiFormatReader();
+
+    function startScanner() {
+      codeReader
+        .listVideoInputDevices()
+        .then(videoInputDevices => {
+          const selectedDeviceId = videoInputDevices[0].deviceId;
+
+          codeReader.decodeFromVideoDevice(selectedDeviceId, 'video', (result, err) => {
+            if (result) {
+              const passportCode = result.text;
+              console.log('Scanned:', passportCode);
+
+              if (window.Telegram && Telegram.WebApp) {
+                Telegram.WebApp.ready();
+                Telegram.WebApp.sendData(passportCode);
+                Telegram.WebApp.close();
+              } else {
+                alert('Результат: ' + passportCode);
+              }
+
+              codeReader.reset(); // Зупиняє камеру
+            }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+              console.error('Сканування помилка:', err);
+            }
+          });
+        })
+        .catch(err => console.error(err));
+    }
+
+    window.addEventListener('load', startScanner);
+  </script>
 </body>
 </html>
