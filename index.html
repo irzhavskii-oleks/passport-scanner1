@@ -17,11 +17,14 @@
       max-width: 400px;
       margin: auto;
     }
+    #manualInputBlock {
+      display: none;
+      margin-top: 1rem;
+    }
     input {
       padding: 10px;
       font-size: 16px;
       width: 80%;
-      margin-top: 1rem;
       border: 1px solid #ccc;
       border-radius: 8px;
     }
@@ -35,71 +38,75 @@
       border-radius: 8px;
     }
     .hint {
-      margin: 1rem 0;
+      margin-top: 1rem;
       color: #666;
     }
   </style>
 </head>
 <body>
   <h2>📷 Наведіть камеру на штрихкод паспорта</h2>
-  <div class="hint">Або введіть номер вручну нижче</div>
   <div id="reader"></div>
 
-  <input type="text" id="manualInput" placeholder="Введіть номер вручну">
-  <br>
-  <button onclick="sendManual()">Надіслати вручну</button>
+  <div class="hint">Не вдалося сканувати?</div>
+  <button onclick="showManual()">Ввести вручну</button>
+
+  <div id="manualInputBlock">
+    <input type="text" id="manualInput" placeholder="Введіть номер паспорта">
+    <br>
+    <button onclick="sendManual()">Надіслати</button>
+  </div>
 
   <script>
-   document.addEventListener("DOMContentLoaded", function () {
-  if (typeof Telegram !== "undefined" && Telegram.WebApp) {
-    Telegram.WebApp.ready();
+    document.addEventListener("DOMContentLoaded", function () {
+      if (typeof Telegram !== "undefined" && Telegram.WebApp) {
+        Telegram.WebApp.ready();
 
-    // Ручне надсилання
-    window.sendManual = function () {
-      const input = document.getElementById("manualInput").value.trim();
-      if (input.length > 0) {
-        if (Telegram.WebApp.sendData) {
-          Telegram.WebApp.sendData(input);
-          Telegram.WebApp.close();
-        } else {
-          alert("Не вдалося надіслати через Telegram WebApp.");
-        }
-      } else {
-        alert("Будь ласка, введіть номер паспорта.");
-      }
-    };
+        // Показати ручне введення
+        window.showManual = function () {
+          document.getElementById("manualInputBlock").style.display = "block";
+        };
 
-    // Автосканування
-    const html5QrCode = new Html5Qrcode("reader");
-
-    Html5Qrcode.getCameras().then(cameras => {
-      if (cameras && cameras.length) {
-        const backCam = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
-
-        html5QrCode.start(
-          backCam.id,
-          { fps: 10, qrbox: 250 },
-          (decodedText) => {
-            Telegram.WebApp.sendData(decodedText);
+        // Ручне надсилання
+        window.sendManual = function () {
+          const input = document.getElementById("manualInput").value.trim();
+          if (input.length > 0) {
+            Telegram.WebApp.sendData(input);
             Telegram.WebApp.close();
-            html5QrCode.stop();
-          },
-          (errorMessage) => {
-            // Не показуємо помилки
+          } else {
+            alert("Будь ласка, введіть номер паспорта.");
           }
-        );
+        };
+
+        // Автосканування
+        const html5QrCode = new Html5Qrcode("reader");
+
+        Html5Qrcode.getCameras().then(cameras => {
+          if (cameras && cameras.length) {
+            const backCam = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
+
+            html5QrCode.start(
+              backCam.id,
+              { fps: 10, qrbox: 250 },
+              (decodedText) => {
+                Telegram.WebApp.sendData(decodedText);
+                Telegram.WebApp.close();
+                html5QrCode.stop();
+              },
+              (errorMessage) => {
+                // не показуємо помилок
+              }
+            );
+          } else {
+            alert("Камеру не знайдено.");
+          }
+        }).catch(err => {
+          alert("Помилка доступу до камери: " + err);
+        });
+
       } else {
-        alert("Камеру не знайдено.");
+        alert("⚠️ Відкрийте цю сторінку через Telegram WebApp, а не браузер.");
       }
-    }).catch(err => {
-      alert("Помилка доступу до камери: " + err);
     });
-
-  } else {
-    alert("Telegram WebApp API не активне. Відкрий через Telegram.");
-  }
-});
-
   </script>
 </body>
 </html>
