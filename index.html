@@ -3,103 +3,73 @@
 <head>
   <meta charset="UTF-8">
   <title>Сканування паспорта</title>
-  <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body {
-      margin: 0;
-      font-family: sans-serif;
-      background-color: #f3f3f3;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      height: 100vh;
+      font-family: Arial, sans-serif;
       padding: 1rem;
-    }
-    h2 {
+      background: #f9f9f9;
       text-align: center;
-      margin-bottom: 1rem;
     }
-    #video {
+    #reader {
       width: 100%;
       max-width: 400px;
-      border: 3px solid #0d6efd;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      margin: auto;
     }
-    .overlay {
-      position: absolute;
-      width: 80%;
-      height: 60%;
-      top: 20%;
-      left: 10%;
-      border: 2px dashed #0d6efd;
-      border-radius: 12px;
-      pointer-events: none;
-    }
-    .loader {
-      margin-top: 1rem;
-      font-size: 1rem;
-      color: #555;
-    }
-    .wrapper {
-      position: relative;
-      display: flex;
-      justify-content: center;
-      width: 100%;
+    .hint {
+      margin: 1rem 0;
+      color: #666;
     }
   </style>
 </head>
 <body>
-  <h2>📷 Наведіть камеру на штрихкод паспорта</h2>
-  <div class="wrapper">
-    <video id="video" autoplay muted playsinline></video>
-    <div class="overlay"></div>
-  </div>
-  <div class="loader">Очікування сканування…</div>
+  <h2>📷 Скануйте штрихкод паспорта</h2>
+  <div class="hint">Наведіть камеру так, щоб код був у рамці</div>
+  <div id="reader"></div>
 
   <script>
-    const codeReader = new ZXing.BrowserMultiFormatReader();
-    const videoElementId = 'video';
+    const scannerConfig = {
+      fps: 10,
+      qrbox: 250,
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.CODE_128
+      ]
+    };
 
-    async function startScanner() {
-      try {
-        const devices = await codeReader.listVideoInputDevices();
+    function onScanSuccess(decodedText, decodedResult) {
+      console.log("✅ Отримано:", decodedText);
 
-        // Спроба знайти задню камеру
-        const backCamera = devices.find(device =>
-          /back|rear|environment/i.test(device.label)
-        ) || devices[0];
-
-        if (!backCamera) throw 'Не знайдено жодної камери';
-
-        codeReader.decodeFromVideoDevice(backCamera.deviceId, videoElementId, (result, err) => {
-          if (result) {
-            const scanned = result.text.trim();
-            console.log('✅ Отримано код:', scanned);
-
-            if (window.Telegram?.WebApp) {
-              Telegram.WebApp.ready();
-              Telegram.WebApp.sendData(scanned);
-              Telegram.WebApp.close();
-            } else {
-              alert("Отримано: " + scanned);
-            }
-
-            codeReader.reset();
-          }
-
-          if (err && !(err instanceof ZXing.NotFoundException)) {
-            console.error('Помилка:', err);
-          }
-        });
-      } catch (error) {
-        alert('Помилка запуску камери: ' + error);
+      if (window.Telegram?.WebApp) {
+        Telegram.WebApp.ready();
+        Telegram.WebApp.sendData(decodedText);
+        Telegram.WebApp.close();
+      } else {
+        alert("Результат: " + decodedText);
       }
+
+      html5QrCode.stop(); // Зупиняє сканування
     }
 
-    window.addEventListener('load', startScanner);
+    const html5QrCode = new Html5Qrcode("reader");
+
+    Html5Qrcode.getCameras().then(cameras => {
+      if (cameras && cameras.length) {
+        const backCam = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
+        html5QrCode.start(
+          backCam.id,
+          scannerConfig,
+          onScanSuccess,
+          errorMessage => {
+            console.warn("❌ Не розпізнано:", errorMessage);
+          }
+        );
+      } else {
+        alert("Камери не знайдено");
+      }
+    }).catch(err => {
+      alert("Помилка доступу до камери: " + err);
+    });
   </script>
 </body>
 </html>
