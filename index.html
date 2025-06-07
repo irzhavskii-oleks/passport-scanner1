@@ -17,6 +17,23 @@
       max-width: 400px;
       margin: auto;
     }
+    input {
+      padding: 10px;
+      font-size: 16px;
+      width: 80%;
+      margin-top: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    button {
+      margin-top: 0.5rem;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #0284c7;
+      color: white;
+      border: none;
+      border-radius: 8px;
+    }
     .hint {
       margin: 1rem 0;
       color: #666;
@@ -24,31 +41,25 @@
   </style>
 </head>
 <body>
-  <h2>📷 Скануйте штрихкод паспорта</h2>
-  <div class="hint">Наведіть камеру так, щоб код був у рамці</div>
+  <h2>📷 Наведіть камеру на штрихкод паспорта</h2>
+  <div class="hint">Або введіть номер вручну нижче</div>
   <div id="reader"></div>
 
+  <input type="text" id="manualInput" placeholder="Введіть номер вручну">
+  <br>
+  <button onclick="sendManual()">Надіслати вручну</button>
+
   <script>
-    const scannerConfig = {
-      fps: 10,
-      qrbox: 250,
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.CODE_128
-      ]
-    };
+    Telegram.WebApp.ready();
 
-    function onScanSuccess(decodedText, decodedResult) {
-      console.log("✅ Отримано:", decodedText);
-
-      if (window.Telegram?.WebApp) {
-        Telegram.WebApp.ready();
-        Telegram.WebApp.sendData(decodedText);
+    function sendManual() {
+      const input = document.getElementById("manualInput").value.trim();
+      if (input.length > 0) {
+        Telegram.WebApp.sendData(input);
         Telegram.WebApp.close();
       } else {
-        alert("Результат: " + decodedText);
+        alert("Будь ласка, введіть номер паспорта.");
       }
-
-      html5QrCode.stop(); // Зупиняє сканування
     }
 
     const html5QrCode = new Html5Qrcode("reader");
@@ -56,16 +67,26 @@
     Html5Qrcode.getCameras().then(cameras => {
       if (cameras && cameras.length) {
         const backCam = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
+
         html5QrCode.start(
           backCam.id,
-          scannerConfig,
-          onScanSuccess,
-          errorMessage => {
-            console.warn("❌ Не розпізнано:", errorMessage);
+          {
+            fps: 10,
+            qrbox: 250,
+            // Тепер автоматичне визначення формату (всі підтримувані)
+          },
+          (decodedText) => {
+            console.log("✅ Розпізнано:", decodedText);
+            Telegram.WebApp.sendData(decodedText);
+            Telegram.WebApp.close();
+            html5QrCode.stop();
+          },
+          error => {
+            // Просто ігноруємо невдалі спроби
           }
         );
       } else {
-        alert("Камери не знайдено");
+        alert("Камеру не знайдено.");
       }
     }).catch(err => {
       alert("Помилка доступу до камери: " + err);
